@@ -1,8 +1,8 @@
 {
-  "name": "classpulse-backend",
+  "name": "attendease-backend",
   "private": true,
   "version": "1.0.0",
-  "description": "ClassPulse - Islington College Daily Attendance & AAA Scholarship System backend engine",
+  "description": "Islington College Daily Attendance & AAA Scholarship System - backend engine",
   "type": "commonjs",
   "main": "src/server.js",
   "scripts": {

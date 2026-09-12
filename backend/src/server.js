@@ -30,13 +30,15 @@ app.get('/api/health', (req, res) => {
 app.use('/api', attendanceRoutes);
 app.use('/api', justificationRoutes);
 
-app.use(notFoundHandler);
+app.use('/api/*', notFoundHandler);
 app.use(errorHandler);
 
-const PORT = Number(process.env.PORT) || 4000;
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`[attendease-backend] listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  const PORT = Number(process.env.PORT) || 4000;
+  app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`[attendease-backend] listening on http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;

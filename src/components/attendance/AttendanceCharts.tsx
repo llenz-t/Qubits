@@ -30,15 +30,10 @@ function zoneColorForRate(rate: number): string {
 interface OverallDonutProps {
   rate: number;
   zone: ScholarshipZone;
-  /** Show the Eligible/At-Risk/Disqualified scholarship-zone label under the
-   *  percentage. Defaults to true; pass false for a plain attendance-only
-   *  view (e.g. the student/parent "Attendance Overview" section) that
-   *  intentionally doesn't surface scholarship framing. */
-  showZoneLabel?: boolean;
 }
 
-/** Overall Attendance Donut Chart - conditional fill by attendance rate. */
-export const OverallAttendanceDonut: React.FC<OverallDonutProps> = ({ rate, zone, showZoneLabel = true }) => {
+/** Overall Attendance Donut Chart - conditional fill by AAA zone. */
+export const OverallAttendanceDonut: React.FC<OverallDonutProps> = ({ rate, zone }) => {
   const clamped = Math.max(0, Math.min(100, rate));
   const color = zoneColorForRate(clamped);
   const data = [
@@ -68,11 +63,9 @@ export const OverallAttendanceDonut: React.FC<OverallDonutProps> = ({ rate, zone
       </ResponsiveContainer>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className="text-3xl font-bold text-neutral-900">{clamped.toFixed(1)}%</span>
-        {showZoneLabel && (
-          <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>
-            {SCHOLARSHIP_ZONE_META[zone].label}
-          </span>
-        )}
+        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>
+          {SCHOLARSHIP_ZONE_META[zone].label}
+        </span>
       </div>
     </div>
   );

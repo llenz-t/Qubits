@@ -1,6 +1,8 @@
 {
-  "name": "ClassPulse",
-  "description": "ClassPulse - daily attendance & scholarship tracking portal",
+  "name": "AttendEase - Islington Student Portal",
+  "description": "Islington College Student Portal keeping Student Services, College Notices, and 80% Regulatory Attendance tracking in seamless harmony",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

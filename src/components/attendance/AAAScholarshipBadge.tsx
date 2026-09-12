@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, ShieldX, LucideIcon } from 'lucide-react';
 import { ScholarshipZone, SCHOLARSHIP_ZONE_META } from '../../types/aaa';
 
 interface AAAScholarshipBadgeProps {
@@ -8,7 +8,7 @@ interface AAAScholarshipBadgeProps {
   size?: 'sm' | 'lg';
 }
 
-const ZONE_ICON: Record<ScholarshipZone, React.ComponentType<{ size?: number }>> = {
+const ZONE_ICON: Record<ScholarshipZone, LucideIcon> = {
   GREEN: ShieldCheck,
   YELLOW: ShieldAlert,
   RED: ShieldX,
