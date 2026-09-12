@@ -1,0 +1,6 @@
+{
+  "name": "ClassPulse",
+  "description": "ClassPulse - daily attendance & scholarship tracking portal",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
