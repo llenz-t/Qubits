@@ -1,3 +1,8 @@
+/**
+ * Single shared Supabase client (service-role key: bypasses row-level
+ * security, since this is a trusted backend, not a browser client).
+ * Every service module requires this instead of creating its own client.
+ */
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 

@@ -1,4 +1,10 @@
-import { useState, useEffect, type FormEvent } from 'react';
+/**
+ * Student "login": a debounced name search (no password) that lists
+ * matching students and hands the chosen studentid up to
+ * StudentPerspective. Stands in for real auth in this demo.
+ */
+import { useState, useEffect } from 'react';
+import { GraduationCap } from '@phosphor-icons/react';
 import { searchStudents } from '../../lib/apiClient';
 import type { Student } from '../../types/canonical';
 
@@ -17,6 +23,8 @@ export default function StudentNameSearch({ onSelect }: StudentNameSearchProps) 
       return;
     }
 
+    // 300ms debounce so we don't fire a request per keystroke; the
+    // cleanup below cancels the pending search if the user keeps typing.
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
@@ -67,7 +75,7 @@ export default function StudentNameSearch({ onSelect }: StudentNameSearchProps) 
               borderRadius: '0.75rem',
               fontSize: '1.5rem'
             }}>
-              📚
+              <GraduationCap size={24} weight="duotone" color="#3b82f6" />
             </div>
             <h2 style={{fontSize: '1.875rem', fontWeight: '700', color: '#0f172a'}}>
               Student Portal

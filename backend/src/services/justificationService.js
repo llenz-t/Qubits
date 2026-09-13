@@ -1,3 +1,10 @@
+/**
+ * Handles the student's absence-justification upload (file goes to
+ * Supabase Storage, a Pending row goes to the `justifications` table)
+ * and the admin's review of it. File URLs are never stored/returned as
+ * permanent public links — createDownloadUrl mints a short-lived (5min)
+ * signed URL per request instead.
+ */
 const supabase = require('../config/supabaseClient');
 
 async function uploadJustification(studentId, file, reason, occurrenceId) {
@@ -37,6 +44,9 @@ async function listJustifications() {
   return results;
 }
 
+// Mints a temporary signed URL (5 min) for a private storage object —
+// used instead of a public bucket so uploaded medical certificates
+// etc. aren't guessable/world-readable.
 async function createDownloadUrl(path) {
   const { data, error } = await supabase.storage.from('justification-files').createSignedUrl(path, 300);
   if (error) throw error;

@@ -1,4 +1,11 @@
+/**
+ * Admin's "Justifications" tab: a status-filtered queue of student
+ * absence-justification submissions with one-click Approve/Reject.
+ * Note: `reviewedBy` is hardcoded to 'Admin' — there's no multi-admin
+ * identity in this demo.
+ */
 import { useState, useEffect } from 'react';
+import { FileText, Paperclip } from '@phosphor-icons/react';
 import { getAdminJustifications, reviewJustification } from '../../lib/apiClient';
 import type { Justification } from '../../types/canonical';
 import StatusBadge from '../shared/StatusBadge';
@@ -88,7 +95,7 @@ export default function AdminJustificationReview() {
         <div style={{padding: '3rem', textAlign: 'center', color: '#64748b'}}>Loading justifications...</div>
       ) : justifications.length === 0 ? (
         <div style={{padding: '3rem', textAlign: 'center'}}>
-          <div style={{fontSize: '3rem', marginBottom: '1rem'}}>📝</div>
+          <FileText size={40} weight="light" color="#cbd5e1" style={{marginBottom: '1rem'}} />
           <p style={{color: '#64748b', fontSize: '0.9375rem'}}>No justifications found</p>
         </div>
       ) : (
@@ -147,7 +154,7 @@ export default function AdminJustificationReview() {
                         onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                         onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                       >
-                        📎 View
+                        <Paperclip size={14} weight="bold" /> View
                       </a>
                     ) : (
                       <span style={{color: '#cbd5e1'}}>—</span>

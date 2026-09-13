@@ -1,4 +1,13 @@
+/**
+ * Admin's "Just Absent Students" tab (formerly "Absence Pool"): the
+ * automation engine's queue of student+course pairs that have crossed
+ * the 3-absence threshold and haven't yet been notified at their
+ * current absence count (GET /api/admin/absence-pool). Each row has an
+ * editable pre-filled message and its own Send button; "Send All" fires
+ * every row's message in parallel via the same per-row send path.
+ */
 import { useState, useEffect } from 'react';
+import { Fire, PaperPlaneTilt } from '@phosphor-icons/react';
 
 interface PoolEntry {
   studentid: string;
@@ -9,11 +18,19 @@ interface PoolEntry {
   absentcount: number;
 }
 
+// One pool row is a (student, course) pair, not just a student — the same
+// student can appear once per course they're behind in.
+function poolKey(studentid: string, moduleid: string) {
+  return `${studentid}_${moduleid}`;
+}
+
 export default function AdminAbsencePool() {
   const [pool, setPool] = useState<PoolEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Map<string, string>>(new Map());
   const [sending, setSending] = useState<Set<string>>(new Set());
+  const [sendingAll, setSendingAll] = useState(false);
+  const [sendAllError, setSendAllError] = useState('');
 
   useEffect(() => {
     loadPool();
@@ -40,12 +57,14 @@ export default function AdminAbsencePool() {
     }
   }
 
-  async function handleSend(entry: PoolEntry) {
-    const key = `${entry.studentid}_${entry.moduleid}`;
-    const messageText = messages.get(key) || '';
-    if (!messageText.trim()) return;
+  // Posts one row's message. Returns success/failure instead of throwing
+  // so both handleSend (one row) and handleSendAll (every row via
+  // Promise.allSettled) can react without a try/catch at each call site.
+  async function sendOne(entry: PoolEntry): Promise<boolean> {
+    const key = poolKey(entry.studentid, entry.moduleid);
+    const messageText = (messages.get(key) || '').trim();
+    if (!messageText) return false;
 
-    setSending(prev => new Set(prev).add(key));
     try {
       const res = await fetch('/api/admin/absence-pool/send', {
         method: 'POST',
@@ -53,33 +72,79 @@ export default function AdminAbsencePool() {
         body: JSON.stringify({
           studentId: entry.studentid,
           moduleId: entry.moduleid,
-          messageText: messageText.trim(),
+          messageText,
           absentCountAtSend: entry.absentcount
         })
       });
-
-      if (res.ok) {
-        // Optimistic update: remove from pool
-        setPool(prev => prev.filter(e => !(e.studentid === entry.studentid && e.moduleid === entry.moduleid)));
-        setMessages(prev => {
-          const updated = new Map(prev);
-          updated.delete(key);
-          return updated;
-        });
-      }
+      return res.ok;
     } catch (err) {
       console.error('Failed to send message:', err);
-    } finally {
+      return false;
+    }
+  }
+
+  // Optimistic update after a successful send: the row is done, so drop
+  // it from the pool and forget its draft message rather than reloading.
+  function removeFromPool(key: string) {
+    setPool(prev => prev.filter(e => poolKey(e.studentid, e.moduleid) !== key));
+    setMessages(prev => {
+      const updated = new Map(prev);
+      updated.delete(key);
+      return updated;
+    });
+  }
+
+  async function handleSend(entry: PoolEntry) {
+    const key = poolKey(entry.studentid, entry.moduleid);
+    setSending(prev => new Set(prev).add(key));
+    const ok = await sendOne(entry);
+    if (ok) removeFromPool(key);
+    setSending(prev => {
+      const updated = new Set(prev);
+      updated.delete(key);
+      return updated;
+    });
+  }
+
+  // Sends every row with a non-empty message in parallel. Rows without
+  // text are skipped rather than blocking the whole batch. Successes are
+  // removed as they land; failures stay in the pool so they can be
+  // retried (individually or via Send All again).
+  async function handleSendAll() {
+    const sendable = pool.filter(e => (messages.get(poolKey(e.studentid, e.moduleid)) || '').trim());
+    if (sendable.length === 0) return;
+
+    setSendAllError('');
+    setSendingAll(true);
+    setSending(prev => {
+      const updated = new Set(prev);
+      sendable.forEach(e => updated.add(poolKey(e.studentid, e.moduleid)));
+      return updated;
+    });
+
+    const results = await Promise.allSettled(sendable.map(sendOne));
+
+    let failedCount = 0;
+    results.forEach((result, i) => {
+      const key = poolKey(sendable[i].studentid, sendable[i].moduleid);
+      if (result.status === 'fulfilled' && result.value) {
+        removeFromPool(key);
+      } else {
+        failedCount += 1;
+      }
       setSending(prev => {
         const updated = new Set(prev);
         updated.delete(key);
         return updated;
       });
-    }
+    });
+
+    setSendAllError(failedCount > 0 ? `${failedCount} message${failedCount > 1 ? 's' : ''} failed to send — try again.` : '');
+    setSendingAll(false);
   }
 
   function updateMessage(studentId: string, moduleId: string, text: string) {
-    const key = `${studentId}_${moduleId}`;
+    const key = poolKey(studentId, moduleId);
     setMessages(prev => new Map(prev).set(key, text));
   }
 
@@ -89,12 +154,41 @@ export default function AdminAbsencePool() {
 
   return (
     <div style={{backgroundColor: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0'}}>
-      <h2 style={{fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-        <span>🚨</span> Absence Pool
-      </h2>
-      <p style={{fontSize: '0.875rem', color: '#64748b', marginBottom: '1.5rem'}}>
+      <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.5rem'}}>
+        <h2 style={{fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+          <Fire size={20} weight="regular" color="#ef4444" /> Absence Pool
+        </h2>
+        {pool.length > 0 && (
+          <button
+            onClick={handleSendAll}
+            disabled={sendingAll}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: sendingAll ? '#fca5a5' : '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              fontWeight: '600',
+              fontSize: '0.875rem',
+              cursor: sendingAll ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <PaperPlaneTilt size={16} weight="fill" />
+            {sendingAll ? 'Sending…' : `Send All (${pool.length})`}
+          </button>
+        )}
+      </div>
+      <p style={{fontSize: '0.875rem', color: '#64748b', marginBottom: sendAllError ? '0.75rem' : '1.5rem'}}>
         Students with 3+ absences who haven't been notified yet at their current absence level
       </p>
+      {sendAllError && (
+        <p style={{fontSize: '0.8125rem', color: '#dc2626', fontWeight: '500', marginBottom: '1.5rem'}}>
+          {sendAllError}
+        </p>
+      )}
 
       {pool.length === 0 ? (
         <div style={{textAlign: 'center', padding: '2rem', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '0.5rem'}}>

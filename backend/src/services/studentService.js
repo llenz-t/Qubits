@@ -1,3 +1,10 @@
+/**
+ * Builds the attendance dashboard shared by both the student and parent
+ * portals. The interesting part is buildDashboard: it treats
+ * `classoccurrence` (actual held sessions) as ground truth for "classes
+ * held" rather than trusting the `attendancesummary` table's cached
+ * totalsessions, so a stale summary row never desyncs the numbers shown.
+ */
 const supabase = require('../config/supabaseClient');
 
 async function findStudentById(studentId) {
@@ -28,6 +35,12 @@ async function findStudentsByName(name) {
   }));
 }
 
+// Assembles one student's full dashboard: profile, per-course stats,
+// and term totals. Enrollment (which modules count) comes from
+// `programmemodules`; live session counts come from `getClassCountsForStudent`;
+// per-course present/late/absent counts come from the `attendancesummary`
+// cache. Year-long (30-credit) modules are split across two semester
+// rows in the DB but merged back into one course card here.
 async function buildDashboard(studentId) {
   const student = await findStudentById(studentId);
   if (!student) throw Object.assign(new Error('Student not found'), { status: 404 });
@@ -167,6 +180,11 @@ async function buildDashboard(studentId) {
   };
 }
 
+// Ground-truth "classes held" count per module: walks
+// classsessions -> sessionsections (this student's section) ->
+// classoccurrence (status='Held') so it reflects reality even if
+// attendancesummary hasn't been recomputed yet. Batched as two queries
+// total instead of one per module to keep this cheap for many modules.
 async function getClassCountsForStudent(sectionid, moduleIds, studentId) {
   if (moduleIds.length === 0) return new Map();
 

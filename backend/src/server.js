@@ -1,4 +1,9 @@
-require('dotenv').config();
+/**
+ * Express entry point. Wires CORS, JSON body parsing, the three portal
+ * route groups (student/parent/admin), and a catch-all error handler.
+ * No auth middleware — each portal's "login" is a lookup, not a session.
+ */
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
 const studentRoutes = require('./routes/studentRoutes');

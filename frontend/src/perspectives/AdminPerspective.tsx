@@ -1,4 +1,10 @@
+/**
+ * Admin console shell: a single-page tab switcher (no routing) between
+ * the five admin tools. The info card above the tab content re-labels
+ * itself per active tab via TAB_HEADER instead of a generic page title.
+ */
 import { useState } from 'react';
+import { UsersFour, BookOpen, FileText, Fire, Info, ShieldCheck } from '@phosphor-icons/react';
 import AdminStudentsTable from '../components/admin/AdminStudentsTable';
 import AdminCoursesManager from '../components/admin/AdminCoursesManager';
 import AdminJustificationReview from '../components/admin/AdminJustificationReview';
@@ -6,6 +12,31 @@ import AdminAbsencePool from '../components/admin/AdminAbsencePool';
 import InformationPage from '../components/shared/InformationPage';
 
 type Tab = 'students' | 'courses' | 'justifications' | 'absence-pool' | 'information';
+
+// Per-tab copy for the header card — keeps the title/subtitle honest
+// about which tool is currently showing instead of one static label.
+const TAB_HEADER: Record<Tab, { title: string; subtitle: string }> = {
+  students: {
+    title: 'Students Info',
+    subtitle: 'Roster, attendance, and academic standing across all sections'
+  },
+  courses: {
+    title: 'Courses',
+    subtitle: 'Manage module schedules, credits, and semester class counts'
+  },
+  justifications: {
+    title: 'Justifications',
+    subtitle: 'Review and approve absence justification submissions'
+  },
+  'absence-pool': {
+    title: 'Just Absent Students',
+    subtitle: 'Students flagged by the automation engine — review and notify in one pass'
+  },
+  information: {
+    title: 'Information',
+    subtitle: 'Publish events and important messages to students and parents'
+  }
+};
 
 export default function AdminPerspective() {
   const [activeTab, setActiveTab] = useState<Tab>('students');
@@ -40,7 +71,7 @@ export default function AdminPerspective() {
                   if (activeTab !== 'students') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <span>👥</span>
+                <UsersFour size={18} weight="regular" />
                 <span>Students</span>
               </button>
               <button
@@ -66,7 +97,7 @@ export default function AdminPerspective() {
                   if (activeTab !== 'courses') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <span>📚</span>
+                <BookOpen size={18} weight="regular" />
                 <span>Courses</span>
               </button>
               <button
@@ -92,7 +123,7 @@ export default function AdminPerspective() {
                   if (activeTab !== 'justifications') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <span>📝</span>
+                <FileText size={18} weight="regular" />
                 <span>Justifications</span>
               </button>
               <button
@@ -118,7 +149,7 @@ export default function AdminPerspective() {
                   if (activeTab !== 'absence-pool') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <span>🚨</span>
+                <Fire size={18} weight="regular" />
                 <span>Absence Pool</span>
               </button>
               <button
@@ -144,7 +175,7 @@ export default function AdminPerspective() {
                   if (activeTab !== 'information') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <span>ℹ️</span>
+                <Info size={18} weight="regular" />
                 <span>Information</span>
               </button>
             </div>
@@ -198,17 +229,17 @@ export default function AdminPerspective() {
               fontSize: '2rem',
               flexShrink: 0
             }}>
-              🛡️
+              <ShieldCheck size={32} weight="duotone" color="#059669" />
             </div>
             <div style={{flex: 1}}>
               <p style={{fontSize: '0.875rem', color: '#64748b', fontWeight: '500', marginBottom: '0.5rem'}}>
                 Admin portal
               </p>
               <h1 style={{fontSize: '1.875rem', fontWeight: '700', color: '#0f172a', marginBottom: '0.5rem'}}>
-                Qubits Administration
+                {TAB_HEADER[activeTab].title}
               </h1>
               <p style={{fontSize: '0.9375rem', color: '#64748b'}}>
-                Manage students, courses, and review absence justifications
+                {TAB_HEADER[activeTab].subtitle}
               </p>
             </div>
           </div>

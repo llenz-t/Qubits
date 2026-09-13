@@ -1,3 +1,4 @@
+/** CRUD for college-wide events shown on the Information tab/page (create + delete are admin-only, enforced by the frontend only — there's no auth check here). */
 const supabase = require('../config/supabaseClient');
 
 async function listEvents() {

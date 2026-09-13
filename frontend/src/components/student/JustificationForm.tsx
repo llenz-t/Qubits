@@ -1,4 +1,11 @@
+/**
+ * Lets a student upload a supporting file + reason for an absence, and
+ * lists their past submissions with admin review status/comments.
+ * Posts to POST /api/students/:id/justifications (multipart, backend
+ * stores the file and creates a Pending row for admin review).
+ */
 import { useState, useEffect, type FormEvent } from 'react';
+import { FileText, Paperclip } from '@phosphor-icons/react';
 import { submitJustification, getStudentJustifications } from '../../lib/apiClient';
 import type { Justification } from '../../types/canonical';
 import StatusBadge from '../shared/StatusBadge';
@@ -184,7 +191,7 @@ export default function JustificationForm({ studentId }: JustificationFormProps)
             textAlign: 'center',
             border: '1px solid #e2e8f0'
           }}>
-            <div style={{fontSize: '3rem', marginBottom: '1rem'}}>📝</div>
+            <FileText size={40} weight="light" color="#cbd5e1" style={{marginBottom: '1rem'}} />
             <p style={{color: '#64748b', fontSize: '0.9375rem'}}>No justifications submitted yet</p>
           </div>
         ) : (
@@ -225,7 +232,7 @@ export default function JustificationForm({ studentId }: JustificationFormProps)
                     onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                     onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                   >
-                    📎 View Attachment
+                    <Paperclip size={14} weight="bold" /> View Attachment
                   </a>
                 )}
                 {j.admincomment && (
@@ -233,8 +240,7 @@ export default function JustificationForm({ studentId }: JustificationFormProps)
                     marginTop: '1rem',
                     padding: '1rem',
                     backgroundColor: '#f8fafc',
-                    borderRadius: '0.5rem',
-                    borderLeft: '3px solid #3b82f6'
+                    borderRadius: '0.5rem'
                   }}>
                     <div style={{fontSize: '0.8125rem', fontWeight: '600', color: '#475569', marginBottom: '0.5rem'}}>
                       Admin Comment

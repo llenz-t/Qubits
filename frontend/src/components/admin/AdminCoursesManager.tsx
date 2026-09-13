@@ -1,3 +1,10 @@
+/**
+ * Admin's "Courses" tab: an editable table of course offerings (credits,
+ * semester, total classes/semester) plus a bulk-deduct modal for
+ * knocking a fixed number of classes off many offerings at once
+ * (e.g. after a college-wide holiday), optionally filtered by
+ * programme/year.
+ */
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { getAdminCourses, updateCourse, bulkDeductClasses } from '../../lib/apiClient';
 import type { Course } from '../../types/canonical';
@@ -41,6 +48,8 @@ export default function AdminCoursesManager() {
     }
   }
 
+  // Seeds the row's draft edit from its current saved values so the
+  // inline <select>/<input> controls have something to bind to.
   function handleEditStart(course: CourseWithMeta) {
     setEditingId(course.offeringid);
     setEdits(prev => ({
@@ -83,6 +92,9 @@ export default function AdminCoursesManager() {
     }));
   }
 
+  // Sends the deduction to the backend, then mirrors the same filter
+  // logic locally so the table reflects the change immediately instead
+  // of waiting on a full reload.
   async function handleBulkDeduct() {
     if (bulkDeduct.deductAmount < 1) return;
 

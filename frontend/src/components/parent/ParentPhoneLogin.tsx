@@ -1,4 +1,10 @@
+/**
+ * Parent "login": looks a parent up by phone number and, on success,
+ * gets back the child's full dashboard payload in one call — no
+ * separate dashboard fetch needed afterward (see parentLookup).
+ */
 import { useState, type FormEvent } from 'react';
+import { UsersFour } from '@phosphor-icons/react';
 import { parentLookup } from '../../lib/apiClient';
 import type { ParentDashboard } from '../../types/canonical';
 
@@ -64,7 +70,7 @@ export default function ParentPhoneLogin({ onSuccess }: ParentPhoneLoginProps) {
               borderRadius: '0.75rem',
               fontSize: '1.5rem'
             }}>
-              👨‍👩‍👧
+              <UsersFour size={24} weight="duotone" color="#8b5cf6" />
             </div>
             <h2 style={{fontSize: '1.875rem', fontWeight: '700', color: '#0f172a'}}>
               Parent Portal

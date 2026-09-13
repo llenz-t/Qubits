@@ -1,4 +1,13 @@
+/**
+ * One component, three call sites: student/parent dashboards render it
+ * read-only (via `showOnlyMessages` / `showOnlyEvents`, one on each
+ * dashboard section), admin renders it full (both sections, plus the
+ * create/delete event controls gated on `isAdmin`). `apiBase` picks
+ * which portal's message-read endpoint to hit; events are always
+ * fetched from the shared `/api/admin/events` list.
+ */
 import { useState, useEffect } from 'react';
+import { CalendarDots, Warning, Trash } from '@phosphor-icons/react';
 
 interface Event {
   eventid: string;
@@ -20,10 +29,12 @@ interface ImportantMessage {
 interface InformationPageProps {
   studentId?: string;
   isAdmin?: boolean;
-  apiBase: string; // '/api/admin', '/api/students/:id', or '/api/parents/:id'
+  apiBase: string;
+  showOnlyMessages?: boolean;
+  showOnlyEvents?: boolean;
 }
 
-export default function InformationPage({ studentId, isAdmin, apiBase }: InformationPageProps) {
+export default function InformationPage({ studentId, isAdmin, apiBase, showOnlyMessages, showOnlyEvents }: InformationPageProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [messages, setMessages] = useState<ImportantMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,110 +116,223 @@ export default function InformationPage({ studentId, isAdmin, apiBase }: Informa
   }
 
   if (loading) {
-    return <div style={{padding: '2rem', textAlign: 'center', color: '#64748b'}}>Loading information...</div>;
+    return <div style={{padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '14px'}}>Loading information...</div>;
   }
 
+  // Messages are per-student (there's nothing to show without a studentId,
+  // e.g. on the admin's Information tab), events are global to the college.
+  const shouldShowMessages = !showOnlyEvents && studentId;
+  const shouldShowEvents = !showOnlyMessages;
+
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-      {/* EVENTS SECTION */}
-      <div style={{backgroundColor: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0'}}>
-        <h2 style={{fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-          <span>📅</span> Events
-        </h2>
-
-        {isAdmin && (
-          <form onSubmit={handleCreateEvent} style={{marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem'}}>
-            <input
-              type="text"
-              placeholder="Event title"
-              value={newEvent.title}
-              onChange={e => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-              style={{width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.9375rem'}}
-              disabled={submitting}
-            />
-            <textarea
-              placeholder="Description (optional)"
-              value={newEvent.description}
-              onChange={e => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-              style={{width: '100%', padding: '0.5rem', marginBottom: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.9375rem', minHeight: '4rem', resize: 'vertical'}}
-              disabled={submitting}
-            />
-            <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
-              <input
-                type="date"
-                value={newEvent.eventdate}
-                onChange={e => setNewEvent(prev => ({ ...prev, eventdate: e.target.value }))}
-                style={{padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.9375rem'}}
-                disabled={submitting}
-              />
-              <button
-                type="submit"
-                disabled={!newEvent.title.trim() || submitting}
-                style={{padding: '0.5rem 1rem', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '0.375rem', fontWeight: '500', cursor: submitting || !newEvent.title.trim() ? 'not-allowed' : 'pointer', opacity: submitting || !newEvent.title.trim() ? 0.5 : 1}}
-              >
-                {submitting ? 'Creating...' : 'Create Event'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {events.length === 0 ? (
-          <p style={{color: '#64748b', textAlign: 'center', padding: '1rem'}}>No events posted yet</p>
-        ) : (
-          <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-            {events.map(event => (
-              <div key={event.eventid} style={{padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0'}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem'}}>
-                  <div style={{flex: 1}}>
-                    <div style={{fontWeight: '600', color: '#0f172a', marginBottom: '0.25rem'}}>{event.title}</div>
-                    {event.description && <p style={{fontSize: '0.9375rem', color: '#64748b', marginBottom: '0.5rem'}}>{event.description}</p>}
-                    <div style={{fontSize: '0.8125rem', color: '#94a3b8'}}>
-                      {event.eventdate && <span>📆 {new Date(event.eventdate).toLocaleDateString()} • </span>}
-                      Posted {timeAgo(event.postedat)}
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleDeleteEvent(event.eventid)}
-                      style={{padding: '0.25rem 0.5rem', fontSize: '0.8125rem', color: '#dc2626', backgroundColor: 'transparent', border: '1px solid #fecaca', borderRadius: '0.25rem', cursor: 'pointer'}}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+    <div style={{display: 'flex', flexDirection: 'column', gap: '24px'}}>
+      {/* IMPORTANT MESSAGES SECTION */}
+      {shouldShowMessages && (
+        <div style={{backgroundColor: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px'}}>
+            <Warning size={24} weight="fill" color="#f59e0b" />
+            <h2 style={{fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0}}>
+              Important Messages
+            </h2>
           </div>
-        )}
-      </div>
-
-      {/* IMPORTANT MESSAGES SECTION (student/parent only) */}
-      {studentId && (
-        <div style={{backgroundColor: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0'}}>
-          <h2 style={{fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-            <span>⚠️</span> Important Messages
-          </h2>
 
           {messages.length === 0 ? (
-            <p style={{color: '#64748b', textAlign: 'center', padding: '1rem'}}>No important messages</p>
+            <p style={{color: '#94a3b8', textAlign: 'center', padding: '24px', fontSize: '14px'}}>No important messages</p>
           ) : (
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
               {messages.map(msg => (
-                <div key={msg.messageid} style={{padding: '1rem', backgroundColor: msg.acknowledged ? '#f8fafc' : '#fef3c7', borderRadius: '0.5rem', border: `1px solid ${msg.acknowledged ? '#e2e8f0' : '#fcd34d'}`}}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem'}}>
+                <div key={msg.messageid} style={{
+                  padding: '16px',
+                  backgroundColor: msg.acknowledged ? '#f8fafc' : '#fffbeb',
+                  borderRadius: '10px',
+                  border: `1px solid ${msg.acknowledged ? '#e2e8f0' : '#fcd34d'}`
+                }}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '16px'}}>
                     <div style={{flex: 1}}>
-                      <div style={{fontWeight: '600', color: '#0f172a', marginBottom: '0.25rem', fontSize: '0.875rem'}}>{msg.modulename}</div>
-                      <p style={{fontSize: '0.9375rem', color: '#334155', marginBottom: '0.5rem'}}>{msg.messagetext}</p>
-                      <div style={{fontSize: '0.8125rem', color: '#94a3b8'}}>
+                      <div style={{fontWeight: '700', color: '#0f172a', marginBottom: '6px', fontSize: '14px'}}>{msg.modulename}</div>
+                      <p style={{fontSize: '14px', color: '#475569', marginBottom: '8px', lineHeight: 1.5}}>{msg.messagetext}</p>
+                      <div style={{fontSize: '12px', color: '#94a3b8', fontWeight: '500'}}>
                         Sent {timeAgo(msg.sentat)}
                       </div>
                     </div>
                     {!msg.acknowledged && apiBase.includes('/students/') && (
                       <button
                         onClick={() => markAsRead(msg.messageid)}
-                        style={{padding: '0.25rem 0.5rem', fontSize: '0.8125rem', color: '#059669', backgroundColor: 'transparent', border: '1px solid #059669', borderRadius: '0.25rem', cursor: 'pointer', whiteSpace: 'nowrap'}}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#059669',
+                          backgroundColor: 'white',
+                          border: '1px solid #059669',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#059669';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'white';
+                          e.currentTarget.style.color = '#059669';
+                        }}
                       >
                         Mark as read
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* EVENTS SECTION */}
+      {shouldShowEvents && (
+        <div style={{backgroundColor: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px'}}>
+            <CalendarDots size={24} weight="fill" color="#3b82f6" />
+            <h2 style={{fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0}}>
+              Events
+            </h2>
+          </div>
+
+          {isAdmin && (
+            <form onSubmit={handleCreateEvent} style={{marginBottom: '24px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0'}}>
+              <input
+                type="text"
+                placeholder="Event title"
+                value={newEvent.title}
+                onChange={e => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  marginBottom: '12px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontFamily: 'inherit'
+                }}
+                disabled={submitting}
+              />
+              <textarea
+                placeholder="Description (optional)"
+                value={newEvent.description}
+                onChange={e => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  marginBottom: '12px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  minHeight: '80px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+                disabled={submitting}
+              />
+              <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+                <input
+                  type="date"
+                  value={newEvent.eventdate}
+                  onChange={e => setNewEvent(prev => ({ ...prev, eventdate: e.target.value }))}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit'
+                  }}
+                  disabled={submitting}
+                />
+                <button
+                  type="submit"
+                  disabled={!newEvent.title.trim() || submitting}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: submitting || !newEvent.title.trim() ? '#cbd5e1' : '#059669',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: submitting || !newEvent.title.trim() ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting && newEvent.title.trim()) {
+                      e.currentTarget.style.backgroundColor = '#047857';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting && newEvent.title.trim()) {
+                      e.currentTarget.style.backgroundColor = '#059669';
+                    }
+                  }}
+                >
+                  {submitting ? 'Creating...' : 'Create Event'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {events.length === 0 ? (
+            <p style={{color: '#94a3b8', textAlign: 'center', padding: '24px', fontSize: '14px'}}>No events posted yet</p>
+          ) : (
+            <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+              {events.map(event => (
+                <div key={event.eventid} style={{
+                  padding: '16px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '10px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '16px'}}>
+                    <div style={{flex: 1}}>
+                      <div style={{fontWeight: '700', color: '#0f172a', marginBottom: '6px', fontSize: '15px'}}>{event.title}</div>
+                      {event.description && <p style={{fontSize: '14px', color: '#64748b', marginBottom: '8px', lineHeight: 1.5}}>{event.description}</p>}
+                      <div style={{fontSize: '12px', color: '#94a3b8', fontWeight: '500'}}>
+                        {event.eventdate && (
+                          <span style={{marginRight: '12px'}}>
+                            <CalendarDots size={14} weight="fill" style={{display: 'inline', marginRight: '4px', verticalAlign: 'middle'}} />
+                            {new Date(event.eventdate).toLocaleDateString()}
+                          </span>
+                        )}
+                        <span>Posted {timeAgo(event.postedat)}</span>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDeleteEvent(event.eventid)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#dc2626',
+                          backgroundColor: 'white',
+                          border: '1px solid #fecaca',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#dc2626';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'white';
+                          e.currentTarget.style.color = '#dc2626';
+                        }}
+                      >
+                        <Trash size={14} weight="bold" />
+                        Delete
                       </button>
                     )}
                   </div>

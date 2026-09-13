@@ -1,3 +1,8 @@
+/**
+ * Parent portal's flow: phone-number lookup (stands in for the "phone
+ * verified login" in the wireframe) returns the full dashboard payload
+ * directly, which is then held in state and handed to ParentDashboard.
+ */
 import { useState } from 'react';
 import ParentPhoneLogin from '../components/parent/ParentPhoneLogin';
 import ParentDashboard from '../components/parent/ParentDashboard';

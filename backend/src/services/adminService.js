@@ -1,5 +1,16 @@
+/**
+ * Backs the admin console's Students and Courses tabs: filtered roster
+ * with attendance rollups, course-offering CRUD, and the bulk-deduct
+ * tool. Queries are batched (fetch all students, then one attendance
+ * query for all of them) rather than N+1 per-student round trips.
+ */
 const supabase = require('../config/supabaseClient');
 
+// Roster with per-student overall attendance. Programme-name filtering
+// happens in JS after the query because Supabase can't filter on a
+// nested joined table's column directly; section/year/search do filter
+// in SQL. Two batched queries total (students, then attendance) instead
+// of one attendance query per student.
 async function getStudentsList(filters = {}) {
   let query = supabase
     .from('students')
@@ -28,62 +39,6 @@ async function getStudentsList(filters = {}) {
     .in('studentid', studentIds);
   if (summaryError) throw summaryError;
 
-  // BATCH QUERY 2: Get all held class counts for all (moduleid, sectionid) pairs at once
-  // Extract unique section IDs and module IDs
-  const sectionIds = [...new Set(filteredStudents.map(s => s.sectionid).filter(Boolean))];
-  const moduleIds = [...new Set((summaries || []).map(s => s.moduleid))];
-
-  if (sectionIds.length === 0 || moduleIds.length === 0) {
-    return filteredStudents.map(s => ({
-      studentid: s.studentid,
-      studentname: s.studentname,
-      sectioncode: s.sections?.sectioncode,
-      year: s.sections?.year,
-      programmename: s.sections?.programmes?.programmename,
-      overall: { totalHeld: 0, totalPresent: 0, attendancePercent: 0 }
-    }));
-  }
-
-  // Get all sessions for these modules + sections
-  const { data: sessions } = await supabase
-    .from('classsessions')
-    .select('sessionid, moduleid, sessionsections!inner(sectionid)')
-    .in('moduleid', moduleIds)
-    .in('sessionsections.sectionid', sectionIds);
-
-  const sessionsByModuleSection = new Map();
-  for (const session of sessions || []) {
-    for (const link of session.sessionsections || []) {
-      const key = `${session.moduleid}_${link.sectionid}`;
-      if (!sessionsByModuleSection.has(key)) {
-        sessionsByModuleSection.set(key, []);
-      }
-      sessionsByModuleSection.get(key).push(session.sessionid);
-    }
-  }
-
-  // Get all held occurrences for these sessions in one query
-  const allSessionIds = [...new Set([...sessionsByModuleSection.values()].flat())];
-  const { data: occurrences } = allSessionIds.length > 0
-    ? await supabase.from('classoccurrence').select('sessionid, occurrenceid').in('sessionid', allSessionIds).eq('status', 'Held')
-    : { data: [] };
-
-  // Build occurrence count map by sessionid
-  const occurrencesBySession = new Map();
-  for (const occ of occurrences || []) {
-    occurrencesBySession.set(occ.sessionid, (occurrencesBySession.get(occ.sessionid) || 0) + 1);
-  }
-
-  // Build final held count map by (moduleid, sectionid)
-  const heldCountMap = new Map();
-  for (const [key, sessionIds] of sessionsByModuleSection.entries()) {
-    let count = 0;
-    for (const sid of sessionIds) {
-      count += occurrencesBySession.get(sid) || 0;
-    }
-    heldCountMap.set(key, count);
-  }
-
   // Group summaries by student
   const summaryByStudent = new Map();
   for (const row of summaries || []) {
@@ -99,20 +54,19 @@ async function getStudentsList(filters = {}) {
     const studentSummaries = summaryByStudent.get(s.studentid) || [];
 
     const overall = studentSummaries.reduce((acc, row) => {
-      const key = `${row.moduleid}_${s.sectionid}`;
-      const liveCount = heldCountMap.get(key) || 0;
-
-      // Data integrity check
-      if (liveCount !== row.totalsessions && row.totalsessions > 0) {
-        console.warn(`[ADMIN DATA INTEGRITY] Student ${s.studentid} Module ${row.moduleid}: ClassOccurrence=${liveCount} AttendanceSummary=${row.totalsessions}`);
-      }
-
+      // Use totalsessions from attendancesummary as the source of truth
+      // This correctly counts ALL classes held across all enrolled modules
       return {
-        totalHeld: acc.totalHeld + liveCount,
+        totalHeld: acc.totalHeld + row.totalsessions,
         totalPresent: acc.totalPresent + row.present,
         totalLate: acc.totalLate + row.late
       };
     }, { totalHeld: 0, totalPresent: 0, totalLate: 0 });
+
+    // Sanity check: attended should never exceed held
+    if (overall.totalPresent > overall.totalHeld) {
+      console.error(`[DATA INTEGRITY ERROR] Student ${s.studentid}: ${overall.totalPresent} present > ${overall.totalHeld} held - this should never happen!`);
+    }
 
     overall.attendancePercent = overall.totalHeld ? parseFloat((((overall.totalPresent + overall.totalLate) / overall.totalHeld) * 100).toFixed(1)) : 0;
 
@@ -148,6 +102,9 @@ async function getCoursesList() {
   }));
 }
 
+// Edits one course offering's credits/semester/total-classes. Credits
+// and semester are constrained to the college's fixed set of valid
+// values (15/30 credits, semester 1/2) rather than accepting anything.
 async function updateCourse(offeringId, updates) {
   if (updates.semester && !['1', '2'].includes(updates.semester)) {
     throw Object.assign(new Error('Semester must be 1 or 2'), { status: 400 });
@@ -165,29 +122,10 @@ async function updateCourse(offeringId, updates) {
   return data;
 }
 
-async function listStudents() {
-  const { data, error } = await supabase.from('students').select('studentid, studentname, email, sectionid, sections(sectioncode, year, programmes(programmename))').order('studentname');
-  if (error) throw error;
-  return data || [];
-}
-
-async function listCourses() {
-  const { data, error } = await supabase.from('modules').select('moduleid, modulename, credits').order('moduleid');
-  if (error) throw error;
-  return data || [];
-}
-
-async function createCourse(course) {
-  const { data, error } = await supabase.from('modules').insert(course).select().single();
-  if (error) throw error;
-  return data;
-}
-
-async function deleteCourse(moduleId) {
-  const { error } = await supabase.from('modules').delete().eq('moduleid', moduleId);
-  if (error) throw error;
-}
-
+// Knocks `deductAmount` off totalclassespersemester for every offering
+// matching the optional programme/year filters — e.g. to account for a
+// college-wide holiday shrinking the semester. programmename is
+// filtered again in JS for the same nested-join reason as getStudentsList.
 async function bulkDeductClasses(filters) {
   const { deductAmount, programmename, year } = filters;
   if (!deductAmount || deductAmount < 1) {
@@ -219,4 +157,4 @@ async function bulkDeductClasses(filters) {
   return { updated };
 }
 
-module.exports = { getStudentsList, getCoursesList, updateCourse, listStudents, listCourses, createCourse, deleteCourse, bulkDeductClasses };
+module.exports = { getStudentsList, getCoursesList, updateCourse, bulkDeductClasses };

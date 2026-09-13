@@ -1,7 +1,15 @@
+/**
+ * Thin fetch wrapper around the Express backend. One function per REST
+ * endpoint, grouped by portal (student / parent / admin). Nothing here
+ * holds state — callers (components) own loading/error state themselves.
+ */
 import type { Student, StudentDashboard, ParentDashboard, Justification } from '../types/canonical';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
+// Normalizes every endpoint's error shape: a non-2xx response throws with
+// the backend's `error` message (or the raw status text) instead of the
+// caller having to check `response.ok` everywhere.
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));

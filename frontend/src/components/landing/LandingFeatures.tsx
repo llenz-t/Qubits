@@ -1,3 +1,4 @@
+/** "Built for daily use" section: a static, no-data feature summary shown below the hero. */
 export default function LandingFeatures() {
   const features = [
     {

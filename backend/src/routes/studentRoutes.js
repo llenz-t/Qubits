@@ -1,3 +1,9 @@
+/**
+ * Mounted at /api/students. Covers the student portal's name-search
+ * "login", dashboard fetch, justification submit/list, and message
+ * read/acknowledge. Each handler is a thin pass-through to a service
+ * function — all real logic lives in services/.
+ */
 const express = require('express');
 const { findStudentsByName, buildDashboard } = require('../services/studentService');
 const { uploadJustification, getStudentJustifications } = require('../services/justificationService');

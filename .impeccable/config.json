@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "frontend/src/components/parent/ParentDashboard.tsx"
+        ],
+        "createdAt": "2026-09-13T02:10:02.055Z",
+        "reason": "intentional progress bar animations - standard attendance visualization pattern"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "frontend/src/components/shared/ProgressBar.tsx"
+        ],
+        "createdAt": "2026-09-13T02:43:48.755Z",
+        "reason": "intentional progress bar fill animation - standard UI pattern for progress indicators"
+      }
+    ]
+  }
+}

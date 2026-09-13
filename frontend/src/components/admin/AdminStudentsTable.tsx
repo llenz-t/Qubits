@@ -1,10 +1,14 @@
+/**
+ * Admin's "Students Info" tab: a filterable, sortable roster of every
+ * student with their overall attendance %. Programme/section filter
+ * options are derived from the first unfiltered load, not hardcoded.
+ */
 import { useState, useEffect, type ChangeEvent } from 'react';
+import { MagnifyingGlass } from '@phosphor-icons/react';
 import { getAdminStudents } from '../../lib/apiClient';
 import type { Student } from '../../types/canonical';
 import { getAttendanceStatus } from '../../lib/constants';
 import StatusBadge from '../shared/StatusBadge';
-
-interface AdminStudentsTableProps {}
 
 interface StudentWithAttendance extends Student {
   overall: {
@@ -35,6 +39,8 @@ export default function AdminStudentsTable() {
     try {
       const data = await getAdminStudents(filters);
       setStudents(data);
+      // Only (re)build the filter dropdown options from a fully-unfiltered
+      // load, so picking one filter doesn't shrink the others' choices.
       if (filters.search === '' && filters.programmename === '' && filters.year === '' && filters.section === '') {
         const progSet = new Set<string>();
         const secSet = new Set<string>();
@@ -190,7 +196,7 @@ export default function AdminStudentsTable() {
         <div style={{padding: '3rem', textAlign: 'center', color: '#64748b'}}>Loading students...</div>
       ) : students.length === 0 ? (
         <div style={{padding: '3rem', textAlign: 'center'}}>
-          <div style={{fontSize: '3rem', marginBottom: '1rem'}}>🔍</div>
+          <MagnifyingGlass size={40} weight="light" color="#cbd5e1" style={{marginBottom: '1rem'}} />
           <p style={{color: '#64748b', fontSize: '0.9375rem'}}>No students found with current filters</p>
         </div>
       ) : (
@@ -275,10 +281,12 @@ export default function AdminStudentsTable() {
                         }}>
                           <div style={{
                             height: '100%',
-                            width: `${Math.min(student.overall.attendancePercent, 100)}%`,
+                            width: '100%',
+                            transform: `scaleX(${Math.min(student.overall.attendancePercent, 100) / 100})`,
+                            transformOrigin: 'left',
                             backgroundColor: status === 'Good' ? '#10b981' : '#f59e0b',
                             borderRadius: '999px',
-                            transition: 'width 0.3s ease'
+                            transition: 'transform 0.3s ease'
                           }} />
                         </div>
                       </div>

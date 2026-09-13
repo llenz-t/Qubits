@@ -1,3 +1,9 @@
+/**
+ * The automated-alert half of the app: reads/acknowledges the
+ * "important messages" a student sees, and builds + sends from the
+ * admin absence pool — the queue of students who've crossed the
+ * 3-absence threshold and haven't been notified at their current count.
+ */
 const supabase = require('../config/supabaseClient');
 
 async function getStudentMessages(studentId) {
@@ -25,6 +31,12 @@ async function markAsRead(messageId) {
   if (error) throw error;
 }
 
+// The pool = every (student, module) with totaleffectiveabsent >= 3
+// that hasn't yet been messaged at their current absence count. Tries a
+// Postgres RPC first (a single NOT EXISTS query, fast); if that
+// function isn't deployed to this Supabase project, falls back to two
+// plain queries plus an in-memory diff against the highest
+// absentcountatsend already sent per pair — same result, more round trips.
 async function getAbsencePool() {
   // ponytail: raw SQL via .rpc(), rewrite with query builder if Supabase adds NOT EXISTS sugar
   const { data, error } = await supabase.rpc('get_absence_pool');
@@ -70,6 +82,10 @@ async function getAbsencePool() {
   return data || [];
 }
 
+// Records one sent notification as an importantmessages row (which is
+// what the student portal reads back and what future getAbsencePool
+// calls compare absentCountAtSend against to avoid re-notifying at the
+// same absence level).
 async function sendAbsenceMessage(payload) {
   const { studentId, moduleId, messageText, absentCountAtSend } = payload;
   const messageId = `MSG-${Date.now()}`;

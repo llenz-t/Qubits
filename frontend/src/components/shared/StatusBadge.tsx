@@ -1,3 +1,8 @@
+/**
+ * Small colored pill for the two status vocabularies in the app:
+ * attendance health (Good/Warning) and justification review
+ * (Pending/Approved/Rejected). Color is looked up from `status` alone.
+ */
 interface StatusBadgeProps {
   status: 'Good' | 'Warning' | 'Pending' | 'Approved' | 'Rejected';
 }

@@ -1,3 +1,9 @@
+/**
+ * Multer config for justification-file uploads: kept in memory (not
+ * disk) since files are immediately re-uploaded to Supabase storage,
+ * restricted to a small allowlist of document/image types, and capped
+ * by MAX_PDF_UPLOAD_BYTES (default 5MB).
+ */
 const multer = require('multer');
 
 const allowedTypes = new Set([

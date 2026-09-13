@@ -1,4 +1,8 @@
-// Shared types matching backend API responses
+/**
+ * Shared TypeScript types mirroring the JSON shapes the Express backend
+ * returns. Field names are lowercase (studentid, moduleid, ...) because
+ * they pass straight through from Postgres/Supabase column names.
+ */
 
 export interface Student {
   studentid: string;

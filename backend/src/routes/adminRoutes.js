@@ -1,3 +1,8 @@
+/**
+ * Mounted at /api/admin. Backs all five admin console tabs: student
+ * roster + filters, course management + bulk-deduct, justification
+ * review, events, and the absence-pool queue + notify endpoint.
+ */
 const express = require('express');
 const { getStudentsList, getCoursesList, updateCourse, bulkDeductClasses } = require('../services/adminService');
 const { listAdminJustifications, reviewJustification } = require('../services/justificationService');
